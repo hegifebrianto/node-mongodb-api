@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const Employee = require('../models/Employee');
+const bcrypt = require('bcryptjs');
+const { generateToken } = require('../utils/jwt');
+const { protect } = require('../middleware/auth');
+
 
 // Create a new employee
 router.post('/employees', async (req, res) => {
@@ -22,10 +26,9 @@ router.post('/employees', async (req, res) => {
 });
 
 // Get all employees
-router.get('/employees', async (req, res) => {
+router.get('/employees', protect, async (req, res) => {
   try {
     const employees = await Employee.find();
-    console.log('employees',employees);
     res.status(200).json(employees);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -64,5 +67,51 @@ router.delete('/employees/:id', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+
+
+// Register
+router.post('/register', async (req, res) => {
+  const { emailAddress, password, ...otherDetails } = req.body;
+
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10); // Hash password
+    const newEmployee = new Employee({
+      ...otherDetails,
+      emailAddress,
+      password: hashedPassword,
+    });
+
+    await newEmployee.save();
+    const token = generateToken(newEmployee._id); // Generate token
+    res.status(201).json({ employee: newEmployee, token });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Login
+router.post('/login', async (req, res) => {
+  const { emailAddress, password } = req.body;
+
+  try {
+    const employee = await Employee.findOne({ emailAddress });
+    if (!employee) {
+      return res.status(404).json({ error: 'Employee not found' });
+    }
+
+    const isMatch = await bcrypt.compare(password, employee.password); // Compare password
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const token = generateToken(employee._id); // Generate token
+    res.status(200).json({ employee, token });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 
 module.exports = router;

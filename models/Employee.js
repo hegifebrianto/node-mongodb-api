@@ -8,8 +8,27 @@ const employeeSchema = new mongoose.Schema({
   preferredFullName: { type: String, required: true },
   employeeCode: { type: String, required: true },
   region: { type: String, required: true },
-  phoneNumber: { type: String, required: true },
-  emailAddress: { type: String, required: false, unique: true }, // Mark as required and unique
-},{ collection: 'employee' });
+  phoneNumber: {
+    type: String,
+    required: true,
+    validate: {
+      validator: (number) => /^\+?[0-9]{7,15}$/.test(number),
+      message: (props) => `${props.value} is not a valid phone number!`,
+    },
+  },
+  emailAddress: {
+    type: String,
+    required: true,
+    unique: true,
+    validate: {
+      validator: (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email),
+      message: (props) => `${props.value} is not a valid email address!`,
+    },
+  },
+  password: { type: String, required: true },
+
+}, {
+  timestamps: true, // Adds createdAt and updatedAt fields
+});
 
 module.exports = mongoose.model('Employee', employeeSchema);
